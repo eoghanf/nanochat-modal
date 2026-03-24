@@ -42,9 +42,9 @@ See [TRAINING_REPORT.md](TRAINING_REPORT.md) for full results. Summary:
 
 | Metric | Our run | Karpathy Run 6 (same codebase) | GPT-2 (2019) |
 |--------|---------|-------------------------------|--------------|
-| Val BPB | **0.7180** | 0.7180 | — |
-| CORE score | **0.2736** | 0.2626 (avg of 5 runs) | 0.2565 |
-| Training time | ~1.65 hr | 1.65 hr | 168 hr |
+| Val BPB | **0.7182** | 0.7180 | — |
+| CORE score | **0.2679** | 0.2626 (avg of 5 runs) | 0.2565 |
+| Training time | ~1.67 hr | 1.65 hr | 168 hr |
 | Cost | ~$78 (on-demand) | ~$48 (spot) | ~$43,000 |
 
 ---

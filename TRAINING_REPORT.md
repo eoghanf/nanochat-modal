@@ -54,10 +54,15 @@ Validation loss is reported in **bits per byte (BPB)**, a unit-independent metri
 | Step | Val BPB | Notes |
 |------|---------|-------|
 | 0 | 3.1674 | Random init |
-| 1,500 | 0.8227 | Early training, warmdown not yet begun |
-| 2,000 | 0.8071 | ~36% through training |
-| 4,000 | 0.7460 | ~72% through training, warmdown in progress |
-| **5,568** | **0.7180** | **Final checkpoint** |
+| 250 | 1.0050 | Early rapid descent |
+| 500 | 0.9058 | |
+| 1,000 | 0.8444 | |
+| 1,500 | 0.8215 | Warmdown not yet begun |
+| 2,000 | 0.8076 | ~36% through training |
+| 3,000 | 0.7716 | Warmdown in progress |
+| 4,000 | 0.7460 | ~72% through training |
+| 5,000 | 0.7257 | |
+| **5,568** | **0.7182** | **Final checkpoint** |
 
 ### DCLM CORE Metric
 
@@ -65,9 +70,9 @@ The CORE metric is a composite benchmark from the DCLM paper, averaging normalis
 
 | Step | CORE Score | vs. GPT-2 threshold |
 |------|-----------|---------------------|
-| 2,000 | 0.1966 | Below (model still learning) |
-| 4,000 | 0.2478 | Below but closing fast |
-| **5,568** | **0.2736** | **+6.7% above GPT-2 threshold** |
+| 2,000 | 0.1791 | Below (model still learning) |
+| 4,000 | 0.2428 | Below but closing fast |
+| **5,568** | **0.2679** | **+4.4% above GPT-2 threshold** |
 
 ---
 
@@ -84,14 +89,14 @@ The table below compares this run to relevant entries from `dev/LEADERBOARD.md`.
 | 4 — Karpathy ClimbMix dataset | `324e69c` | 24 | 9.5 | 0.7185 | 0.2571 | 2.02 hr |
 | 5 — Karpathy autoresearch r1 | `6ed7d1d` | 24 | 8.7 | 0.7181 | 0.2690 | 1.80 hr |
 | **6 — Karpathy autoresearch r2 (avg)** | **`a825e63`** | **24** | **8.0** | **0.7180** | **0.2626** | **1.65 hr** |
-| **This run (Modal)** | **`a825e63`** | **24** | **8.0** | **0.7180** | **0.2736** | ~1.65 hr* |
+| **This run (Modal)** | **`a825e63`** | **24** | **8.0** | **0.7182** | **0.2679** | ~1.67 hr* |
 
 \* *Training time not precisely measured for this run; estimated from step count and observed throughput (~1,073 ms/step steady-state ≈ 99 min).*
 
 ### Commentary
 
-- **Val BPB matches exactly.** This run achieved 0.7180 BPB, identical to Karpathy's Run 6 average. This confirms the Modal infrastructure reproduced the training environment faithfully.
-- **CORE score is slightly higher than the Run 6 average.** Our run scored 0.2736 vs. the Run 6 average of 0.2626. Karpathy notes in the leaderboard that individual runs on this codebase show variance of ~0.016 (min 0.250, max 0.268 for Run 4; similar variance is expected here). Our 0.2736 sits at the high end of that variance — a lucky seed, not a systematic improvement.
+- **Val BPB matches exactly.** This run achieved 0.7182 BPB, essentially identical to Karpathy's Run 6 average (0.7180). This confirms the Modal infrastructure reproduced the training environment faithfully.
+- **CORE score is slightly higher than the Run 6 average.** Our run scored 0.2679 vs. the Run 6 average of 0.2626. Karpathy notes in the leaderboard that individual runs on this codebase show variance of ~0.016, so our result sits comfortably within the expected spread — a favourable seed rather than a systematic improvement.
 - **This run uses the FineWeb-EDU dataset** (Runs 1–3 and Run 6 also use FineWeb-EDU), not the ClimbMix dataset introduced in Run 4. Despite that, Run 6's architectural improvements (smear, backout, tuned hyperparameters from autoresearch) close the gap substantially — the val BPB of 0.718 on FineWeb-EDU matches ClimbMix-era performance.
 - **Cost efficiency.** Training cost ~$78 on Modal (on-demand pricing ~$3/GPU/hr × 8 GPUs × ~3.25 hours including setup, tokenizer, eval, SFT). At spot pricing this would be closer to $20–25.
 
