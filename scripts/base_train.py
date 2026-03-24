@@ -18,6 +18,7 @@ import json
 import time
 import math
 import argparse
+import yaml
 from dataclasses import asdict
 from contextlib import contextmanager
 
@@ -44,7 +45,7 @@ parser.add_argument("--run", type=str, default="dummy", help="wandb run name ('d
 # Runtime
 parser.add_argument("--device-type", type=str, default="", help="cuda|cpu|mps (empty = autodetect)")
 # FP8 training
-parser.add_argument("--fp8", action="store_true", help="enable FP8 training (requires H100+ GPU and torchao)")
+parser.add_argument("--fp8", action=argparse.BooleanOptionalAction, default=False, help="enable FP8 training (requires H100+ GPU and torchao)")
 parser.add_argument("--fp8-recipe", type=str, default="tensorwise", choices=["rowwise", "tensorwise"], help="FP8 scaling recipe: tensorwise (faster, recommended) or rowwise (more accurate but slower)")
 # Model architecture
 parser.add_argument("--depth", type=int, default=20, help="depth of the Transformer model")
@@ -77,6 +78,16 @@ parser.add_argument("--sample-every", type=int, default=2000, help="sample from 
 parser.add_argument("--save-every", type=int, default=-1, help="save checkpoints every N steps (-1 = only at end)")
 # Output
 parser.add_argument("--model-tag", type=str, default=None, help="override model tag for checkpoint directory name")
+
+# Load training_config.yaml and use as defaults (CLI args still override)
+_config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "training_config.yaml")
+if os.path.exists(_config_path):
+    with open(_config_path) as _f:
+        _yaml_config = yaml.safe_load(_f) or {}
+    # Exclude null values — let argparse defaults handle those
+    _yaml_defaults = {k: v for k, v in _yaml_config.items() if v is not None}
+    parser.set_defaults(**_yaml_defaults)
+
 args = parser.parse_args()
 user_config = vars(args).copy()  # for logging
 # -----------------------------------------------------------------------------
