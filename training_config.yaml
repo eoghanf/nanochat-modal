@@ -6,6 +6,7 @@
 # Logging
 # --------------------
 run: "speedrun-v2"             # wandb run name ("dummy" = no logging)
+wandb_group: ~                 # wandb group (null = no grouping; set e.g. "bench-1000" to group related runs)
 
 # --------------------
 # Model architecture

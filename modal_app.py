@@ -200,8 +200,53 @@ def serve() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Benchmark — 8 parallel 1×H100 runs for 1000 steps each, grouped in W&B
+# ---------------------------------------------------------------------------
+@app.function(
+    image=image,
+    gpu="H100:1",
+    volumes={CACHE_PATH: volume},
+    timeout=1 * 3600,
+    secrets=[modal.Secret.from_dotenv()],
+)
+def bench_run(run_index: int, group: str) -> None:
+    import os, sys
+    os.chdir("/app")
+    env = {
+        **os.environ,
+        "OMP_NUM_THREADS": "1",
+        "NANOCHAT_BASE_DIR": CACHE_PATH,
+        "PYTHONPATH": "/app",
+    }
+    _run(
+        [
+            sys.executable, "-m", "scripts.base_train",
+            "--",
+            f"--run={group}-{run_index:02d}",
+            f"--wandb-group={group}",
+            "--num-iterations=1000",
+            "--core-metric-every=-1",
+            "--sample-every=-1",
+            "--save-every=-1",
+        ],
+        env=env,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Local entry-point
 # ---------------------------------------------------------------------------
 @app.local_entrypoint()
 def main() -> None:
     train.remote()
+
+
+@app.local_entrypoint()
+def benchmark(group: str = "bench-1000", n: int = 8) -> None:
+    """Run N parallel 1xH100 benchmark runs for 1000 steps each.
+
+    Usage:
+        uv run modal run modal_app.py::benchmark
+        uv run modal run modal_app.py::benchmark --group bench-1000-v2 --n 4
+    """
+    list(bench_run.map(range(n), kwargs={"group": group}))
