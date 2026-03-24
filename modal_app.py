@@ -206,7 +206,7 @@ def serve() -> None:
     image=image,
     gpu="H100:1",
     volumes={CACHE_PATH: volume},
-    timeout=1 * 3600,
+    timeout=3 * 3600,  # 3 hours — 1000 steps on 1xH100 takes ~140 min
     secrets=[modal.Secret.from_dotenv()],
 )
 def bench_run(run_index: int, group: str) -> None:
