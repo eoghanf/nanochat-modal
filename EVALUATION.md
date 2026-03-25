@@ -82,13 +82,34 @@ With this threshold, the benchmark can reliably detect improvements of **~2% in 
 
 ---
 
+## Cost
+
+Modal does not expose per-function-call cost breakdowns — only per-app, per-hour billing. However, we can derive the per-run cost from the `bench-1000-v3` billing data combined with W&B runtimes.
+
+| Metric | Value |
+|--------|-------|
+| Average runtime per benchmark run | 154 min (2.57 hr) |
+| Total H100-hours (8 runs) | 20.5 H100-hr |
+| Total billing for `bench-1000-v3` | $85.09 |
+| Derived H100 rate | ~$4.15/hr |
+| **Cost per individual benchmark run** | **~$10.65** |
+| **Total cost for one full benchmark (8 runs)** | **~$85** |
+
+The H100 rate of ~$4.15/hr is consistent with Modal's published on-demand pricing. The 8 runs execute in parallel, so the wall-clock time is ~2.6 hours regardless of how many runs are launched.
+
+For comparison, the full training run (8×H100, 1.88 hours of training time plus tokenisation, evaluation, and SFT) cost approximately **$78**.
+
+---
+
 ## Comparison: Benchmark vs Full Run
 
-| | Benchmark | Full training run |
-|-|-----------|-----------------|
+| | Benchmark (8 runs) | Full training run |
+|-|--------------------|-----------------|
 | Hardware | 8× 1×H100 (parallel) | 1× 8×H100 |
-| Wall-clock time | ~2.3 hours | ~1.67 hours |
-| Estimated cost | ~$30 | ~$40–78 |
+| Wall-clock time | ~2.6 hours | ~3.5 hours (end-to-end) |
+| Cost | ~$85 | ~$78 |
 | Metric | 1,000-step loss | Final val BPB + CORE |
-| Runs needed to claim progress | 1 (if loss < 2.64) | 1 (if CORE > 0.2565) |
+| Threshold to claim progress | single run ≤ 2.64 nats | CORE > 0.2565 |
 | Run-to-run variance | ±0.029 nats | ±0.01–0.02 CORE |
+
+The benchmark and a full run cost approximately the same. The benchmark's value is not lower cost per se, but **faster iteration**: you get a reliable signal in the same wall-clock time as a full run, without waiting for tokenisation, SFT, and full evaluation. The 1,000-step loss is also a lower-variance signal than CORE for detecting small improvements.
