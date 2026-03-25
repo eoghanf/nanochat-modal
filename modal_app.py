@@ -223,6 +223,7 @@ def bench_run(run_index: int, group: str) -> None:
             sys.executable, "-m", "scripts.base_train",
             f"--run={group}-{run_index:02d}",
             f"--wandb-group={group}",
+            f"--data-seed={run_index + 1}",
             "--num-iterations=1000",
             "--core-metric-every=-1",
             "--sample-every=-1",
