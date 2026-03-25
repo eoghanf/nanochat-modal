@@ -157,6 +157,42 @@ The slow first step (~68s) is caused by `torch.compile` JIT tracing and FP8 kern
 
 ---
 
+## Benchmark: Cheap Evaluation of Architectural Changes
+
+A full training run (8×H100, ~1.67 hours) is too expensive to run repeatedly when evaluating candidate changes to the model architecture or training code. To make iteration practical, we define a **benchmark** consisting of 8 independent training runs, each on a single H100 for 1,000 steps. The 8 runs are launched in parallel on Modal so the wall-clock time is the same as a single run (~2.3 hours), and the total cost is a fraction of a full run.
+
+### Why 8 runs rather than 1?
+
+The training loss after 1,000 steps is a noisy signal — different random seeds, data orderings, and non-determinism in CUDA kernels all introduce variance. Running 8 independent seeds and taking the mean gives a much more stable estimate. If an architectural change moves the mean loss by more than the noise floor, it is a real improvement.
+
+### Results (group: `bench-1000-v2`)
+
+![Benchmark chart](benchmark_chart.png)
+
+| Run | Final loss (step 1000, nats) |
+|-----|------------------------------|
+| bench-1000-v2-00 | 2.6897 |
+| bench-1000-v2-01 | 2.6887 |
+| bench-1000-v2-02 | 2.6895 |
+| bench-1000-v2-03 | 2.6890 |
+| bench-1000-v2-04 | 2.6891 |
+| bench-1000-v2-05 | 2.6889 |
+| bench-1000-v2-06 | 2.6885 |
+| bench-1000-v2-07 | 2.6885 |
+| **Mean ± std** | **2.6890 ± 0.0004** |
+
+The variance across 8 runs is strikingly small — a standard deviation of **0.0004 nats**, or roughly 0.015% of the mean. This makes the benchmark highly sensitive: any architectural change that moves the mean by more than ~0.001 nats is detectable as a genuine signal rather than noise. By comparison, the CORE metric on a full run varies by ±0.01–0.02 between runs, making it far harder to draw conclusions from a single experiment.
+
+### How to run the benchmark
+
+```bash
+uv run modal run modal_app.py::benchmark --group bench-1000-v2
+```
+
+To test a change, run the benchmark before and after and compare mean final losses. A lower mean loss after 1,000 steps reliably predicts a lower final val BPB after the full training run.
+
+---
+
 ## Key Takeaways
 
 1. **Modal faithfully reproduces the reference training environment.** Val BPB of 0.7180 matches Karpathy's Run 6 exactly despite running on cloud-managed infrastructure rather than a bare-metal node.
