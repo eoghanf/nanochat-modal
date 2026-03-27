@@ -32,7 +32,6 @@ from nanochat.common import compute_init, compute_cleanup, print0, DummyWandb, p
 from nanochat.tokenizer import get_tokenizer, get_token_bytes
 from nanochat.checkpoint_manager import save_checkpoint, load_checkpoint
 from nanochat.loss_eval import evaluate_bpb
-from nanochat.engine import Engine
 from nanochat.flash_attention import HAS_FA3
 from scripts.base_eval import evaluate_core
 print_banner()
@@ -44,6 +43,7 @@ parser = argparse.ArgumentParser(description="Pretrain base model")
 parser.add_argument("--run", type=str, default="dummy", help="wandb run name ('dummy' disables wandb logging)")
 parser.add_argument("--wandb-group", type=str, default=None, help="wandb group name (groups related runs together in the UI)")
 parser.add_argument("--data-seed", type=int, default=0, help="shuffle training shards with this seed (0 = no shuffle, use sorted order)")
+parser.add_argument("--weight-seed", type=int, default=0, help="override weight init RNG seed (0 = use global seed set by compute_init)")
 # Runtime
 parser.add_argument("--device-type", type=str, default="", help="cuda|cpu|mps (empty = autodetect)")
 # FP8 training
@@ -161,6 +161,10 @@ model_config = model.config
 model_config_kwargs = asdict(model_config)
 print0(f"Model config:\n{json.dumps(model_config_kwargs, indent=2)}")
 model.to_empty(device=device) # 2) All tensors get storage on target device but with uninitialized (garbage) data
+if args.weight_seed != 0:
+    torch.manual_seed(args.weight_seed)
+    if device_type == "cuda":
+        torch.cuda.manual_seed(args.weight_seed)
 model.init_weights() # 3) All tensors get initialized
 
 # If we are resuming, overwrite the model parameters with those of the checkpoint
@@ -477,12 +481,11 @@ while True:
             "My favorite color is",
             "If 5*x + 3 = 13, then x is",
         ]
-        engine = Engine(orig_model, tokenizer) # use orig_model to avoid recompilation
         for prompt in prompts:
             tokens = tokenizer(prompt, prepend="<|bos|>")
             with disable_fp8(orig_model):
-                sample, _ = engine.generate_batch(tokens, num_samples=1, max_tokens=16, temperature=0)
-            print0(tokenizer.decode(sample[0]))
+                generated = tokens + list(orig_model.generate(tokens, max_tokens=16, temperature=0))
+            print0(tokenizer.decode(generated))
         model.train()
 
     # save checkpoint: at the end of the run, or every save_every steps, except at the first step or the resume step

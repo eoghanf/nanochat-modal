@@ -37,7 +37,6 @@ from nanochat.checkpoint_manager import load_model
 from nanochat.core_eval import evaluate_task
 from nanochat.dataloader import tokenizing_distributed_data_loader_bos_bestfit
 from nanochat.loss_eval import evaluate_bpb
-from nanochat.engine import Engine
 
 # -----------------------------------------------------------------------------
 # HuggingFace loading utilities
@@ -206,7 +205,7 @@ def main():
         model_name = args.hf_path
         model_slug = args.hf_path.replace("/", "-")
     else:
-        model, tokenizer, meta = load_model("base", device, phase="eval", model_tag=args.model_tag, step=args.step)
+        model, tokenizer, meta = load_model(device, phase="eval", model_tag=args.model_tag, step=args.step)
         sequence_len = meta["model_config"]["sequence_len"]
         token_bytes = get_token_bytes(device=device)
         model_name = f"base_model (step {meta['step']})"
@@ -236,21 +235,20 @@ def main():
                 "My favorite color is",
                 "If 5*x + 3 = 13, then x is",
             ]
-            engine = Engine(model, tokenizer)
             print0("\nConditioned samples:")
             for prompt in prompts:
                 tokens = tokenizer(prompt, prepend="<|bos|>")
-                sample, _ = engine.generate_batch(tokens, num_samples=1, max_tokens=16, temperature=0)
-                sample_str = tokenizer.decode(sample[0])
+                generated = tokens + list(model.generate(tokens, max_tokens=16, temperature=0))
+                sample_str = tokenizer.decode(generated)
                 print0("-" * 80)
                 print0(sample_str)
                 samples.append(sample_str)
 
             print0("\nUnconditioned samples:")
             tokens = tokenizer("", prepend="<|bos|>")
-            uncond, _ = engine.generate_batch(tokens, num_samples=8, max_tokens=128, temperature=1.0)
-            for sample in uncond:
-                sample_str = tokenizer.decode(sample)
+            for i in range(8):
+                generated = tokens + list(model.generate(tokens, max_tokens=128, temperature=1.0, seed=i))
+                sample_str = tokenizer.decode(generated)
                 print0("-" * 80)
                 print0(sample_str)
                 unconditioned_samples.append(sample_str)

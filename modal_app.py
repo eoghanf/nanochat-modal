@@ -1,10 +1,9 @@
 """
-Modal app — runs the full nanochat training pipeline on a single 8×H100 node,
-and serves the chat web UI on a single A10G.
+Modal app — runs the nanochat pretraining pipeline on a single 8×H100 node.
 
 Usage:
     uv run modal run modal_app.py          # full training run
-    uv run modal serve modal_app.py        # serve chat web UI
+    uv run modal run modal_app.py::benchmark --group <name>  # benchmark runs
 
 Hyperparameters come from training_config.yaml in the project root.
 Checkpoints, datasets, and tokenizer artifacts are stored in a persistent
@@ -35,7 +34,6 @@ image = (
     # Everything else
     .pip_install(
         "datasets>=4.0.0",
-        "fastapi>=0.117.1",
         "filelock>=3.0",
         "kernels>=0.11.7",
         "matplotlib>=3.10.8",
@@ -50,7 +48,6 @@ image = (
         "tiktoken>=0.11.0",
         "tokenizers>=0.22.0",
         "transformers>=4.57.3",
-        "uvicorn>=0.36.0",
         "wandb>=0.21.3",
         "zstandard>=0.25.0",
     )
@@ -136,67 +133,11 @@ def train() -> None:
         env=env,
     )
 
-    # -------------------------------------------------------------------
-    # SFT — download identity conversations, then fine-tune
-    # -------------------------------------------------------------------
-    identity_path = os.path.join(CACHE_PATH, "identity_conversations.jsonl")
-    if not os.path.exists(identity_path):
-        import urllib.request
-        print("\nDownloading identity conversations...", flush=True)
-        urllib.request.urlretrieve(
-            "https://karpathy-public.s3.us-west-2.amazonaws.com/identity_conversations.jsonl",
-            identity_path,
-        )
-
-    _run(
-        [
-            "torchrun", "--standalone", "--nproc_per_node=8",
-            "-m", "scripts.chat_sft",
-            "--", "--device-batch-size=16",
-        ],
-        env=env,
-    )
-
-    # SFT evaluation
-    _run(
-        [
-            "torchrun", "--standalone", "--nproc_per_node=8",
-            "-m", "scripts.chat_eval",
-            "--", "-i", "sft",
-        ],
-        env=env,
-    )
-
     # Generate the final markdown report
     _run([sys.executable, "-m", "nanochat.report", "generate"], env=env)
 
     # Flush all writes to the persistent volume
     volume.commit()
-
-
-# ---------------------------------------------------------------------------
-# Chat web UI — served on a single A10G (inference only, no training)
-# ---------------------------------------------------------------------------
-@app.function(
-    image=image,
-    gpu="A10G",
-    volumes={CACHE_PATH: volume},
-    timeout=2 * 3600,  # 2 hours max session
-    secrets=[modal.Secret.from_dotenv()],
-)
-@modal.web_server(port=8000, startup_timeout=120)
-def serve() -> None:
-    import subprocess, sys, os
-    os.chdir("/app")
-    env = {
-        **os.environ,
-        "NANOCHAT_BASE_DIR": CACHE_PATH,
-        "PYTHONPATH": "/app",
-    }
-    subprocess.Popen(
-        [sys.executable, "-m", "scripts.chat_web", "--num-gpus", "1", "--source", "sft"],
-        env=env,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -224,6 +165,7 @@ def bench_run(run_index: int, group: str) -> None:
             f"--run={group}-{run_index:02d}",
             f"--wandb-group={group}",
             f"--data-seed={run_index + 1}",
+            f"--weight-seed={run_index + 1}",
             "--num-iterations=1000",
             "--core-metric-every=-1",
             "--sample-every=-1",

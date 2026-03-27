@@ -161,24 +161,15 @@ def load_model_from_dir(checkpoints_dir, device, phase, model_tag=None, step=Non
     model, tokenizer, meta_data = build_model(checkpoint_dir, step, device, phase)
     return model, tokenizer, meta_data
 
-def load_model(source, *args, **kwargs):
-    model_dir = {
-        "base": "base_checkpoints",
-        "sft": "chatsft_checkpoints",
-        "rl": "chatrl_checkpoints",
-    }[source]
+def load_model(*args, **kwargs):
     base_dir = get_base_dir()
-    checkpoints_dir = os.path.join(base_dir, model_dir)
+    checkpoints_dir = os.path.join(base_dir, "base_checkpoints")
     return load_model_from_dir(checkpoints_dir, *args, **kwargs)
 
-def load_optimizer_state(source, device, rank, model_tag=None, step=None):
+def load_optimizer_state(device, rank, model_tag=None, step=None):
     """Load just the optimizer shard for a given rank, without re-loading the model."""
-    model_dir = {
-        "base": "base_checkpoints",
-        "sft": "chatsft_checkpoints",
-        "rl": "chatrl_checkpoints",
-    }[source]
     base_dir = get_base_dir()
+    checkpoints_dir = os.path.join(base_dir, "base_checkpoints")
     checkpoints_dir = os.path.join(base_dir, model_dir)
     if model_tag is None:
         model_tag = find_largest_model(checkpoints_dir)

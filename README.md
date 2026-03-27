@@ -1,21 +1,23 @@
 # nanochat-modal
 
 > **Original author: [Andrej Karpathy](https://github.com/karpathy/nanochat)**
-> This is a lightly refactored fork of [karpathy/nanochat](https://github.com/karpathy/nanochat) (commit [`a825e63`](https://github.com/karpathy/nanochat/commit/a825e63), autoresearch round 2).
+> This is a fork of [karpathy/nanochat](https://github.com/karpathy/nanochat) (commit [`a825e63`](https://github.com/karpathy/nanochat/commit/a825e63), autoresearch round 2).
 > The core training code, model architecture, tokenizer, and evaluation harness are entirely Karpathy's work.
-> This fork adds a Modal-based launcher (`modal_app.py`) and a central hyperparameter file (`training_config.yaml`) to make it easy to run the full pipeline on cloud GPUs without managing your own node.
+
+**Scope of this fork:** we have stripped the codebase down to the pretraining loop and validation measurements only. The SFT fine-tuning pipeline, the inference engine, the chat CLI, and the chat web UI have all been removed. What remains is the training loop (`scripts/base_train.py`), base model evaluation (`scripts/base_eval.py`), tokenizer training and evaluation, and the Modal launcher. This makes the codebase easier to reason about and experiment with during architectural research.
 
 ---
 
-## What this fork adds
+## What this fork changes
 
-| File | Purpose |
-|------|---------|
-| `modal_app.py` | Runs the full pipeline on a Modal 8×H100 node; also serves the chat UI on a single A10G |
-| `training_config.yaml` | Central hyperparameter file — edit here instead of hunting through CLI flags |
-| `TRAINING_REPORT.md` | Report from our training run, with results compared to Karpathy's leaderboard |
-
-Everything else is unchanged from upstream.
+| Change | Detail |
+|--------|--------|
+| **Removed SFT pipeline** | `scripts/chat_sft.py`, `scripts/chat_eval.py`, and all task modules (`tasks/`) deleted |
+| **Removed chat interface** | `scripts/chat_cli.py`, `scripts/chat_web.py`, `nanochat/engine.py`, and the web UI assets deleted |
+| **Modal launcher** | `modal_app.py` runs pretraining + base eval on a Modal 8×H100 node; SFT and serve functions removed |
+| **Hyperparameter file** | `training_config.yaml` — edit here instead of hunting through CLI flags |
+| **Training report** | `TRAINING_REPORT.md` — results from our training run compared to Karpathy's leaderboard |
+| **Benchmark harness** | `modal_app.py::benchmark` runs 8 parallel 1×H100 runs for fast architectural evaluation (see `EVALUATION.md`) |
 
 ## Quickstart (Modal)
 
@@ -27,11 +29,11 @@ uv sync --extra gpu
 uv run modal setup        # authenticate with Modal
 # Add WANDB_API_KEY to .env
 
-# Run the full pipeline (tokeniser → pretraining → SFT → eval)
+# Run the full pretraining pipeline (tokenizer → pretraining → base eval)
 uv run modal run modal_app.py
 
-# Serve the chat web UI on a single A10G
-uv run modal serve modal_app.py
+# Run a benchmark (8 parallel 1×H100 runs, 1000 steps each)
+uv run modal run modal_app.py::benchmark --group <name>
 ```
 
 Hyperparameters are in `training_config.yaml`. CLI arguments override YAML values if passed explicitly.
@@ -51,7 +53,7 @@ See [TRAINING_REPORT.md](TRAINING_REPORT.md) for full results. Summary:
 
 ## Original nanochat description
 
-nanochat is the simplest experimental harness for training LLMs from scratch. It covers the full stack: tokenization, pretraining, supervised fine-tuning, evaluation, inference, and a ChatGPT-style web UI. The goal is to train a GPT-2 capability model (~$43,000 in 2019) for well under $100 on modern hardware.
+nanochat (upstream) is the simplest experimental harness for training LLMs from scratch. It covers the full stack: tokenization, pretraining, supervised fine-tuning, evaluation, inference, and a ChatGPT-style web UI. The goal is to train a GPT-2 capability model (~$43,000 in 2019) for well under $100 on modern hardware. This fork retains only the pretraining and evaluation portions.
 
 The single complexity dial is `--depth` (number of transformer layers). All other hyperparameters — width, heads, learning rates, training horizon, weight decay — are derived automatically for compute-optimal training.
 
